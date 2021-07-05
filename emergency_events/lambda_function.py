@@ -18,7 +18,7 @@ def get_event_table(db=None):
     event_table_name = 'Events'
     region_table_names = [table.name for table in db.tables.all()]
     if event_table_name not in region_table_names:
-        return db.create_table(
+        db.create_table(
             TableName='Events',
             KeySchema=[
                 {
@@ -45,6 +45,7 @@ def get_event_table(db=None):
                 'WriteCapacityUnits': 10
             }
         )
+        return db.Table('Events')
     else:
         return db.Table('Events')
 
@@ -58,7 +59,7 @@ def write_event(db=None, in_event=None):
         'dtg': in_event['description']['event_opened'],
         'info': json.dumps(in_event)
     }
-    events = db.Table('Events')
+    events = get_event_table(db=db)
     try:
         events.put_item(Item=out_event)
         return out_event
