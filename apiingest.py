@@ -1,9 +1,14 @@
 import json
 import boto3
+import botocore
+
+
+class ClientException(Exception):
+    pass
 
 
 def get_db_connection():
-    return boto3.resource('dynamodb', region_name='us-east-1')
+    return boto3.resource('dynamodb')
 
 
 def get_event_table(db=None):
@@ -53,22 +58,33 @@ def write_event(db=None, in_event=None):
         'dtg': in_event['description']['event_opened'],
         'info': json.dumps(in_event)
     }
-    events = get_event_table(db=db)
-    print(events.name)
-    events.put_item(Item=out_event)
+    events = db.Table('Events')
+    try:
+        events.put_item(Item=out_event)
+        return out_event
+    except botocore.exceptions.ClientError as e:
+        raise ClientException(str(e))
 
 
-f = open('F01705150050.json',)
+def lambda_handler(event, context):
+    body = event['body']
+    dd = json.loads(body)
+    try:
+        result = write_event(in_event=dd)
+    except Exception as e:
+        exception_type = e.__class__.__name__
+        exception_message = str(e)
 
-rpost = json.load(f)
-write_event(in_event=rpost)
+        api_exception_obj = {
+            "isError": True,
+            "type": exception_type,
+            "message": exception_message
+        }
+        api_exception_json = json.dumps(api_exception_obj)
+        raise LambdaException(api_exception_json)
 
-f.close()
+    return {
+        'statusCode': 200,
+        'body': json.dumps(result)
+    }
 
-
-f = open('F01705150090.json',)
-
-rpost = json.load(f)
-write_event(in_event=rpost)
-
-f.close()
