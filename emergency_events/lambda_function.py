@@ -8,10 +8,21 @@ class ClientException(Exception):
 
 
 def get_db_connection():
+    """
+    Gets a DynamoDB connection for the lambda context
+    :return: a dynamodb database connection object
+    """
     return boto3.resource('dynamodb')
 
 
 def get_event_table(db=None):
+    """
+    Returns the Events table from the database connection if specified.  If it doesn't exist, it is created.  IRL, the
+    creation task is better suited for CodeDeploy or CloudFormation rather than in this lambda function as the table
+    might not be ready for consumption immediately after creation.
+    :param db: database connection object, or if None, will get one
+    :return: the Events table object
+    """
     if not db:
         db = get_db_connection()
 
@@ -45,12 +56,18 @@ def get_event_table(db=None):
                 'WriteCapacityUnits': 10
             }
         )
-        return db.Table('Events')
-    else:
-        return db.Table('Events')
+    return db.Table('Events')
 
 
 def write_event(db=None, in_event=None):
+    """
+    Commits an event to the Events table
+    :param db: Database connection, or gets one if None
+    :param in_event: The event JSON.  JSON must include event_id and event_opened in the description.  (We would do
+    better validation here IRL)
+    :return: a JSON object of the committed event if successful.
+    :exception Raises a client exception if not successful
+    """
     if not db:
         db = get_db_connection()
 
@@ -68,6 +85,12 @@ def write_event(db=None, in_event=None):
 
 
 def lambda_handler(event, context):
+    """
+    Called by the lambda function context when the API is called
+    :param event: Event from the API gateway
+    :param context: Lambda function context
+    :return: echos back the received data for client side validation as an HTTP 200 response
+    """
     body = event['body']
     dd = json.loads(body)
     try:
